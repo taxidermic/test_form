@@ -28,7 +28,10 @@ export default class NationalityPicker extends React.PureComponent<IProps, IStat
                 <TouchableWithoutFeedback onPress={hideModal}>
                     <View style={styles.wrapper}>
                         <View style={styles.formWrapper}>
-                            <TextInput autoFocus value={this.state.nationalityInput} style={{ margin: 10 }} onChangeText={(nationalityInput) => this.setState({
+                            <TextInput autoFocus 
+                            value={this.state.nationalityInput} style={{ margin: 10 }} 
+                            placeholder='Поиск'
+                            onChangeText={(nationalityInput) => this.setState({
                                 nationalityInput, countries: PASS_COUNTRY.filter((value: { label: string, code: string }) => {
                                     return value.label.startsWith(nationalityInput)
                                 }),
