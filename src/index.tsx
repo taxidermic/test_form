@@ -64,6 +64,8 @@ class MainScreen extends Component<IProps, IState> {
     constructor(props: IProps) {
         super(props)
         props.setBirthdate(new Date().valueOf())
+        const tommorow = new Date()
+        tommorow.setDate(tommorow.getDate() + 1)
         this.state = {
             birthDate: new Date(),
             countries: PASS_COUNTRY,
@@ -73,7 +75,7 @@ class MainScreen extends Component<IProps, IState> {
             isNameValid: false,
             isNumberValid: false,
             isSerialValid: false,
-            issuedAt: undefined,
+            issuedAt: tommorow,
             isSurnameValid: false,
             selectedDoc: 'domestic',
             selectedNationality: PASS_COUNTRY[0],
@@ -89,7 +91,6 @@ class MainScreen extends Component<IProps, IState> {
     }
     handleSurnameChangeAndroid = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
         const value = e.nativeEvent.key
-        console.log(value)
         if (value == 'Backspace') {
             this.setState({ surname: this.state.surname.slice(0, -1), isSurnameValid: this.state.surname.length > 1 })
         } else if (validator.isAlpha(value, 'ru-RU') || validator.isAlpha(value)) {
@@ -98,7 +99,6 @@ class MainScreen extends Component<IProps, IState> {
     }
     handleNameChangeAndroid = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
         const value = e.nativeEvent.key
-        console.log(value)
         if (value == 'Backspace') {
             this.setState({ name: this.state.name.slice(0, -1), isNameValid: this.state.name.length > 1 })
         } else if (validator.isAlpha(value, 'ru-RU') || validator.isAlpha(value)) {
@@ -121,6 +121,7 @@ class MainScreen extends Component<IProps, IState> {
             const tommorow = new Date()
             tommorow.setDate(tommorow.getDate() + 1)
             this.props.setIssuedAt(tommorow.valueOf())
+            this.setState({ issuedAt: tommorow })
         } else {
             this.props.setIssuedAt(0)
         }
@@ -131,14 +132,14 @@ class MainScreen extends Component<IProps, IState> {
     }
 
     showDatePicker = (entity?: string) => {
-        if (entity === 'passport') {
-            const tommorow = new Date()
-            tommorow.setDate(tommorow.getDate() + 1)
+        const tommorow = new Date()
+        tommorow.setDate(tommorow.getDate() + 1)
+        if (entity === 'international') {
             this.props.setIssuedAt(tommorow.valueOf())
             this.setState({ showIssuedAtPicker: true, issuedAt: tommorow })
         } else {
             this.props.setIssuedAt(0)
-            this.setState({ showDatePicker: true, issuedAt: undefined })
+            this.setState({ showDatePicker: true, issuedAt: tommorow })
         }
     }
     handleSerialChange = (serialDoc: string) => {
@@ -235,8 +236,10 @@ class MainScreen extends Component<IProps, IState> {
         this.props.setNationality(selectedNationality.code)
         this.setState({ selectedNationality, showNationalityPicker: false })
     }
+    // hack for android promise
+    counter = 0
     renderDatePicker = () => {
-        if (this.state.showDatePicker === false && this.state.showIssuedAtPicker === false) return null
+        if (this.state.showDatePicker === false && this.state.showIssuedAtPicker === false || this.counter > 0) return null
         if (Platform.OS === 'ios') {
             let props
             const date = new Date()
@@ -265,18 +268,36 @@ class MainScreen extends Component<IProps, IState> {
                 </Modal>
             )
         } else {
-            DatePickerAndroid.open({
-                date: new Date()
-            }).then(({ action, year, month, day }) => {
-                if (action !== DatePickerAndroid.dismissedAction) {
-                    const newDate = new Date(year, month, day)
-                    this.state.showDatePicker ? this.props.setBirthdate(newDate.valueOf()) : this.props.setIssuedAt(newDate.valueOf())
-                    this.state.showDatePicker ? this.setState({ birthDate: newDate, showDatePicker: false }) : this.setState({ issuedAt: newDate, showDatePicker: false })
-                } else {
-                    this.setState({ showDatePicker: false })
-                }
+            let props = {}
+            const date = new Date()
+            if (this.state.showIssuedAtPicker === true) {
+                date.setDate(date.getDate() + 1)
+                props = { minDate: date, date }
+            } else {
+                props = { maxDate: date, date }
+            }
+            try {
+                DatePickerAndroid.open(props).then(({ action, year, month, day }) => {
+                    this.counter++
+                    if (action !== DatePickerAndroid.dismissedAction) {
+                        const newDate = new Date(year, month, day)
+                        if (this.state.showDatePicker) {
+                            this.props.setBirthdate(newDate.valueOf())
+                            this.setState({ birthDate: newDate, showDatePicker: false })
+                        } else {
+                            this.props.setIssuedAt(newDate.valueOf())
+                            this.setState({ issuedAt: newDate, showIssuedAtPicker: false })
+                        }
+                    } else {
+                        this.counter = 0
+                        this.setState({ showDatePicker: false, showIssuedAtPicker: false })
+                    }
 
-            })
+                })
+            } catch ({ code, message }) {
+                console.warn('Cannot open date picker', message);
+            }
+
             return null
         }
     }
@@ -385,11 +406,11 @@ class MainScreen extends Component<IProps, IState> {
                                     />
                                 </Cell>
                                 <Cell style={{ flex: 2 }} title={'Номер'}>
-                                    <TextInput 
-                                    style={this.state.isNumberValid ? styles.formInput : styles.formInputRequired} 
-                                    clearButtonMode='while-editing'
-                                    value={this.state.numberDoc} onChangeText={this.handleNumberChange} 
-                                    onEndEditing={() => this.props.setDocumentNumber(this.state.numberDoc)} />
+                                    <TextInput
+                                        style={this.state.isNumberValid ? styles.formInput : styles.formInputRequired}
+                                        clearButtonMode='while-editing'
+                                        value={this.state.numberDoc} onChangeText={this.handleNumberChange}
+                                        onEndEditing={() => this.props.setDocumentNumber(this.state.numberDoc)} />
                                 </Cell>
                             </View>
                             <Text style={styles.warningText}>{this.state.isSerialValid === false ? 'Неверно введена серия' : ' '}</Text>
