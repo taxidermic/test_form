@@ -1,6 +1,6 @@
 
 import React, { Component } from 'react';
-import { Platform, StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, TextInputChangeEventData, DatePickerIOS, DatePickerAndroid, Modal, Dimensions, SafeAreaView, VirtualizedList, Picker, TouchableWithoutFeedback, Alert } from 'react-native';
+import { Platform, StyleSheet, Text, View, ScrollView, TouchableOpacity, TextInput, TextInputChangeEventData, DatePickerIOS, DatePickerAndroid, Modal, Dimensions, SafeAreaView, VirtualizedList, Picker, TouchableWithoutFeedback, Alert, NativeSyntheticEvent, TextInputEndEditingEventData, TextInputKeyPressEventData } from 'react-native';
 import validator from 'validator'
 import { PASS_COUNTRY } from '../nationalities';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scrollview'
@@ -85,6 +85,24 @@ class MainScreen extends Component<IProps, IState> {
             showNationalityPicker: false,
             showSendModal: false,
             surname: '',
+        }
+    }
+    handleSurnameChangeAndroid = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+        const value = e.nativeEvent.key
+        console.log(value)
+        if (value == 'Backspace') {
+            this.setState({ surname: this.state.surname.slice(0, -1), isSurnameValid: this.state.surname.length > 1 })
+        } else if (validator.isAlpha(value, 'ru-RU') || validator.isAlpha(value)) {
+            this.setState({ surname: this.state.surname + value.toLocaleUpperCase(), isSurnameValid: value.length > 0 });
+        }
+    }
+    handleNameChangeAndroid = (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+        const value = e.nativeEvent.key
+        console.log(value)
+        if (value == 'Backspace') {
+            this.setState({ name: this.state.name.slice(0, -1), isNameValid: this.state.name.length > 1 })
+        } else if (validator.isAlpha(value, 'ru-RU') || validator.isAlpha(value)) {
+            this.setState({ name: this.state.name + value.toLocaleUpperCase(), isNameValid: value.length > 0 });
         }
     }
     handleSurnameChange = (value: string) => {
@@ -263,7 +281,9 @@ class MainScreen extends Component<IProps, IState> {
         }
     }
     render() {
-        console.log('render')
+        // this is hack, see: https://github.com/facebook/react-native/issues/11068
+        const surnameInputProps = Platform.OS === 'android' ? { onKeyPress: this.handleSurnameChangeAndroid } : { onChangeText: this.handleSurnameChange }
+        const nameInputProps = Platform.OS === 'android' ? { onKeyPress: this.handleNameChangeAndroid } : { onChangeText: this.handleNameChange }
         return (
             <SafeAreaView style={styles.parentWrapper}>
                 <KeyboardAwareScrollView style={styles.scrollView}>
@@ -277,11 +297,25 @@ class MainScreen extends Component<IProps, IState> {
                             </TouchableOpacity>
                         </View>
                         <Cell title={'Фамилия'}>
-                            <TextInput maxLength={20} numberOfLines={1} textContentType='familyName' style={this.state.isSurnameValid ? styles.formInput : styles.formInputRequired} placeholder={"Как в паспорте"} value={this.state.surname} onChangeText={this.handleSurnameChange} onEndEditing={() => this.props.setSurname(this.state.surname)} />
+                            <TextInput
+                                maxLength={20} numberOfLines={1} textContentType='familyName'
+                                clearButtonMode='while-editing'
+                                style={this.state.isSurnameValid ? styles.formInput : styles.formInputRequired}
+                                placeholder={"Как в паспорте"} value={this.state.surname}
+                                {...surnameInputProps}
+                                onEndEditing={() => this.props.setSurname(this.state.surname)}
+                            />
                             {!this.state.isSurnameValid ? <Text style={styles.warningText}>Поле обязательно к заполнению</Text> : <Text> </Text>}
                         </Cell>
                         <Cell title={'Имя'}>
-                            <TextInput maxLength={20} numberOfLines={1} textContentType='name' style={this.state.isNameValid ? styles.formInput : styles.formInputRequired} placeholder={"Как в паспорте"} value={this.state.name} onChangeText={this.handleNameChange} onEndEditing={() => this.props.setName(this.state.name)} />
+                            <TextInput
+                                maxLength={20} numberOfLines={1} textContentType='name'
+                                clearButtonMode='while-editing'
+                                style={this.state.isNameValid ? styles.formInput : styles.formInputRequired}
+                                placeholder={"Как в паспорте"} value={this.state.name}
+                                {...nameInputProps}
+                                onEndEditing={() => this.props.setName(this.state.name)}
+                            />
                             {!this.state.isNameValid ? <Text style={styles.warningText}>Поле обязательно к заполнению</Text> : <Text> </Text>}
                         </Cell>
                         <Cell title={'Дата Рождения'}>
@@ -343,10 +377,19 @@ class MainScreen extends Component<IProps, IState> {
                         <View>
                             <View style={{ flexDirection: 'row' }}>
                                 <Cell style={{ flex: 1, marginRight: 10 }} title={'Серия'}>
-                                    <TextInput style={this.state.isSerialValid ? styles.formInput : styles.formInputRequired} value={this.state.serialDoc} onChangeText={this.handleSerialChange} onEndEditing={() => this.props.setDocumentSerial(this.state.serialDoc)} />
+                                    <TextInput
+                                        style={this.state.isSerialValid ? styles.formInput : styles.formInputRequired}
+                                        clearButtonMode='while-editing'
+                                        value={this.state.serialDoc} onChangeText={this.handleSerialChange}
+                                        onEndEditing={() => this.props.setDocumentSerial(this.state.serialDoc)}
+                                    />
                                 </Cell>
                                 <Cell style={{ flex: 2 }} title={'Номер'}>
-                                    <TextInput style={this.state.isNumberValid ? styles.formInput : styles.formInputRequired} value={this.state.numberDoc} onChangeText={this.handleNumberChange} onEndEditing={() => this.props.setDocumentNumber(this.state.numberDoc)} />
+                                    <TextInput 
+                                    style={this.state.isNumberValid ? styles.formInput : styles.formInputRequired} 
+                                    clearButtonMode='while-editing'
+                                    value={this.state.numberDoc} onChangeText={this.handleNumberChange} 
+                                    onEndEditing={() => this.props.setDocumentNumber(this.state.numberDoc)} />
                                 </Cell>
                             </View>
                             <Text style={styles.warningText}>{this.state.isSerialValid === false ? 'Неверно введена серия' : ' '}</Text>
